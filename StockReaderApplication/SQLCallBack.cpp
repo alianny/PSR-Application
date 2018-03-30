@@ -11,7 +11,7 @@ int CallBackClass::callback_Tester(void *ID, int count, char **data, char **colu
 {
 	textboxUpdate += "\n----------------------------------";
 	for(int i = 0; i < count; i++)
-		textboxUpdate += "\n" + std::to_string(i+1) + ": Column: " + columns[i] +" Value: " + data[i] ;
+		textboxUpdate += "\n" + std::to_string(i+1) + ": " + columns[i] +" Value: " + data[i] ;
 	return 0;
 }
 

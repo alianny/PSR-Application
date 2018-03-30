@@ -252,13 +252,18 @@ namespace StockReaderApplication {
 				    else
 				    {
 					   const char* data = "Callback function called";
-					   InformationBox->Text +="Table Already Exist..." ;
-					    /*test*/
-					    // std::string createTable = "INSERT INTO " + tempStock + " (date , Open, Close, High, Low ) VALUES('2018-3-26', 81.0 , 22.0 , 33.0 , 54.0);";
-						//rc = sqlite3_exec(db, createTable.c_str(), &test.callback_Tester, (void*)data, &error);
-					   std::string selectall = "SELECT * from " + tempStock;
-						rc = sqlite3_exec(db, selectall.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
-						InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
+					   InformationBox->Text +="Table Already Exist, Checking for dates..." ;
+					   /*Add fields to DB*/
+					   std::string createTable = "INSERT INTO " + tempStock + " (date , Open, Close, High, Low ) VALUES('2018-03-30', 81.0 , 22.0 , 33.0 , 54.0);";
+					   rc = sqlite3_exec(db, createTable.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
+					   /*Get and print information in Table*/
+					   //std::string selectall = "SELECT * from " + tempStock;
+					   //rc = sqlite3_exec(db, selectall.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
+
+					   std::string StartDate = msclr::interop::marshal_as<std::string>(dateTimePicker1->Value.ToString("yyyy-MM-dd"));
+					   std::string selectall = "SELECT * from " + tempStock + " WHERE date ='" + StartDate + "'" ;
+					   rc = sqlite3_exec(db, selectall.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
+					   InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
 				    }
 				}
 				sqlite3_free(error);
