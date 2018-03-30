@@ -1,11 +1,9 @@
 #pragma once
 #include <string>
-#include <iostream>
-#include <fstream>
 #include <msclr\marshal_cppstd.h>
 #include "sqlite3.h"
 #include "SQLCallBack.h"
-#include <list>
+
 #ifdef _DEBUG
   #undef _DEBUG
   #include <Python.h>
@@ -23,6 +21,7 @@ namespace StockReaderApplication {
 	using namespace System::Data;
 	using namespace System::Drawing;
 
+	
 	/// <summary>
 	/// Summary for Form1
 	/// </summary>
@@ -143,6 +142,8 @@ namespace StockReaderApplication {
 			// 
 			// InformationBox
 			// 
+			this->InformationBox->Anchor = static_cast<System::Windows::Forms::AnchorStyles>(((System::Windows::Forms::AnchorStyles::Top | System::Windows::Forms::AnchorStyles::Bottom) 
+				| System::Windows::Forms::AnchorStyles::Right));
 			this->InformationBox->Location = System::Drawing::Point(228, 13);
 			this->InformationBox->Name = L"InformationBox";
 			this->InformationBox->ReadOnly = true;
@@ -189,10 +190,10 @@ namespace StockReaderApplication {
 				std::string test = msclr::interop::marshal_as<std::string>(dateTimePicker1->Text);
 
 			 }
-#include <iostream>
+
 	private: bool readyToStart()
 			 {
-				 char *error;
+				 char *error = "";
 				 
 				 const char* data = "Callback function called";
 				//Make sure stock field isnt empty
@@ -216,30 +217,36 @@ namespace StockReaderApplication {
 				int rc = sqlite3_open("localPSR.db", &db);
 				if(rc)
 				{
-					InformationBox->Text += "\nProblem detected opening database...";
-					sqlite3_close(db);
-					sqlite3_free(error);
+					printError(db, error);
 					return false;
 				}
 				else
 				{
 					
-					std::string tempStock = msclr::interop::marshal_as<std::string>(StockSymbol->Text);
-					//std::string doesitexist = "SELECT name FROM sqlite_master WHERE type='table' AND name='" + tempStock +"'";
-					//rc = sqlite3_exec(db, doesitexist.c_str(), &test.callback_Tester, (void*)data, &error);
-					InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
-					if(!rc)
+					std::string tempStock   = msclr::interop::marshal_as<std::string>(StockSymbol->Text);
+					std::string doesitexist = "SELECT * FROM '" + tempStock + "'";
+					
+					//rc = sqlite3_exec(db, doesitexist.c_str(),NULL,NULL, &error);
+					rc = sqlite3_exec(db, doesitexist.c_str(), NULL, NULL, &error);
+					if(rc)
 					{
-						InformationBox->Text +="\nhNew table needed, Creating new table..." ;
+						printError(db, error);
+						return false;
+					}
+
+					InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
+					if(rc)
+					{
+						InformationBox->Text +="\nNew table needed, Creating new table..." ;
 						std::string createTable = "CREATE TABLE " + tempStock + " (date DATE PRIMARY KEY, Open FLOAT, Close FLOAT, High FLOAT, Low FLOAT );";
 						rc = sqlite3_exec(db, createTable.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
 						if (rc)
 						{
-							InformationBox->Text += "Error executing SQLite3 statement: ";
-							//InformationBox->Text += static_cast<std::string>(sqlite3_errmsg(db));
-							sqlite3_free(error);
-							sqlite3_close(db);
-							return false;
+							if(rc)
+							{
+								printError(db, error);
+								return false;
+							}
 						}
 				    }
 				    else
@@ -258,6 +265,14 @@ namespace StockReaderApplication {
 				sqlite3_close(db);
 				return true;
 			 }
+
+	private: void printError(  sqlite3 * db, char * error)
+			 {
+				    InformationBox->Text += "\nError Detected...";
+					sqlite3_close(db);
+					sqlite3_free(error);
+			 }
+
 	private: bool callPython()
 			 {
 				 /* Work needed, figure out how to call python methods for future work
@@ -287,7 +302,7 @@ namespace StockReaderApplication {
 			 }
 	
 };
-	
+
 	
 }
 
