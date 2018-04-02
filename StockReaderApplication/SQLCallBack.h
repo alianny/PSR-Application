@@ -18,5 +18,6 @@ public:
 	 *  columns - The column names
 	 */
 	static int callback_Tester(void *unused, int count, char **argvdata, char **columns);
-	static inline std::string getTextUpdate(){ return textboxUpdate; };
+	static inline std::string getTextUpdate()  { return textboxUpdate; };
+	static inline void ClearTextUpdate(){  textboxUpdate = "";  };
 };

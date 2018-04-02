@@ -193,20 +193,22 @@ namespace StockReaderApplication {
 
 	private: bool readyToStart()
 			 {
-				 char *error = "";
+				char *error = "";
 				 
-				 const char* data = "Callback function called";
+				const char* data = "Callback function called";
 				//Make sure stock field isnt empty
-				 InformationBox->Text += "\nChecking for stock symbol...";
+				InformationBox->Text += "\nChecking for stock symbol...";
 				if(!StockSymbol->Text->Length )
 				{
+				  InformationBox->Text += "\nStock symbol sanity check Failed...";
 				  return false;
 				}
 				//Date sanity check
 				InformationBox->Text += "\nChecking dates...";
-				if(dateTimePicker1->Value.Date <= dateTimePicker2->Value.Date)
+				if(dateTimePicker1->Value.Date >= dateTimePicker2->Value.Date)
 				{
-				 /// return false;
+					InformationBox->Text += "\nDate sanity check failed...";
+				    return false;
 				}
 
 				//Opening Local Database
@@ -228,42 +230,45 @@ namespace StockReaderApplication {
 					
 					//rc = sqlite3_exec(db, doesitexist.c_str(),NULL,NULL, &error);
 					rc = sqlite3_exec(db, doesitexist.c_str(), NULL, NULL, &error);
-					if(rc)
-					{
-						printError(db, error);
-						return false;
-					}
 
 					InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
 					if(rc)
 					{
+						printError(db, error);
 						InformationBox->Text +="\nNew table needed, Creating new table..." ;
 						std::string createTable = "CREATE TABLE " + tempStock + " (date DATE PRIMARY KEY, Open FLOAT, Close FLOAT, High FLOAT, Low FLOAT );";
 						rc = sqlite3_exec(db, createTable.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
 						if (rc)
 						{
-							if(rc)
-							{
-								printError(db, error);
-								return false;
-							}
+							printError(db, error);
+							return false;
+							
 						}
 				    }
 				    else
 				    {
-					   const char* data = "Callback function called";
 					   InformationBox->Text +="Table Already Exist, Checking for dates..." ;
-					   /*Add fields to DB*/
-					   std::string createTable = "INSERT INTO " + tempStock + " (date , Open, Close, High, Low ) VALUES('2018-03-30', 81.0 , 22.0 , 33.0 , 54.0);";
-					   rc = sqlite3_exec(db, createTable.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
-					   /*Get and print information in Table*/
-					   //std::string selectall = "SELECT * from " + tempStock;
-					   //rc = sqlite3_exec(db, selectall.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
 
-					   std::string StartDate = msclr::interop::marshal_as<std::string>(dateTimePicker1->Value.ToString("yyyy-MM-dd"));
-					   std::string selectall = "SELECT * from " + tempStock + " WHERE date ='" + StartDate + "'" ;
-					   rc = sqlite3_exec(db, selectall.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
-					   InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
+					   /*Get and print information in Table*/
+					   //
+					   DateTime tempStartDate = dateTimePicker1->Value;
+
+;					   while(tempStartDate <= dateTimePicker2->Value)
+					   {
+						   std::string StartDate = msclr::interop::marshal_as<std::string>(tempStartDate.ToString("yyyy-MM-dd"));
+						   std::string selectall = "SELECT * from " + tempStock + " WHERE date ='" + StartDate + "'" ;
+						   rc = sqlite3_exec(db, selectall.c_str(), &callBackMethod.callback_Tester, NULL , &error);
+						   if (rc)
+						   {
+						       printError(db, error);
+							   return false;
+						   }
+						   InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
+						   callBackMethod.ClearTextUpdate();
+						   tempStartDate = tempStartDate.AddDays(1);
+					       
+					   }
+					   
 				    }
 				}
 				sqlite3_free(error);
