@@ -20,7 +20,8 @@ namespace StockReaderApplication {
 	using namespace System::Windows::Forms;
 	using namespace System::Data;
 	using namespace System::Drawing;
-
+	
+	std::string databaseName = "localPSR.db";
 	
 	/// <summary>
 	/// Summary for Form1
@@ -180,9 +181,10 @@ namespace StockReaderApplication {
 			 {
 				 InformationBox->Text = "Sanity Check...";
 				 // Commented out for testing purposes
-				 if(!readyToStart()) return; //Simple check for input
-				 
-				//FOR TESTING if(!callPython()) return;
+				 if(!readyToStart())
+				 {
+				   callPython();
+				 }
 
 				std::string startDate = msclr::interop::marshal_as<std::string>(dateTimePicker1->Value.ToString("MM/dd/yyyy"));
 				std::string endDate = msclr::interop::marshal_as<std::string>(dateTimePicker1->Value.ToString("MM/dd/yyyy"));
@@ -216,7 +218,7 @@ namespace StockReaderApplication {
 				sqlite3 * db;
 				CallBackClass callBackMethod;
 
-				int rc = sqlite3_open("localPSR.db", &db);
+				int rc = sqlite3_open(databaseName.c_str(), &db);
 				if(rc)
 				{
 					printError(db, error);
@@ -305,10 +307,10 @@ namespace StockReaderApplication {
 
 				 Py_Finalize();
 				 */
-			   std::string argument (std::string("..\\PythonReader\\PSR.py") + std::string(" https://www.nasdaq.com/symbol/pir/historical") + std::string(" //*[@id=\\\"ddlTimeFrame\\\"]/option[1]") + std::string(" PIR"));
-			   system(argument.c_str());
+				 std::string argument (std::string("..\\PythonReader\\PSR.py") + std::string(" https://www.nasdaq.com/symbol/pir/historical") + std::string(" //*[@id=\\\"ddlTimeFrame\\\"]/option[1]") + std::string(" PIR ") + databaseName.c_str() );
+			     system(argument.c_str());
 
-			   return true;
+			     return true;
 			 }
 	
 };
