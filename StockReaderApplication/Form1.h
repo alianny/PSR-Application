@@ -4,14 +4,6 @@
 #include "sqlite3.h"
 #include "SQLCallBack.h"
 
-#ifdef _DEBUG
-  #undef _DEBUG
-  #include <Python.h>
-  #define _DEBUG
-#else
-  #include <Python.h>
-#endif
-
 namespace StockReaderApplication {
 	
 	using namespace System;
@@ -183,7 +175,8 @@ namespace StockReaderApplication {
 				 // Commented out for testing purposes
 				 if(!readyToStart())
 				 {
-				   callPython();
+				   InformationBox->Text += "\nSomething when wrong...";
+				   return;
 				 }
 
 				std::string startDate = msclr::interop::marshal_as<std::string>(dateTimePicker1->Value.ToString("MM/dd/yyyy"));
@@ -195,8 +188,13 @@ namespace StockReaderApplication {
 
 	private: bool readyToStart()
 			 {
+				 /*
+
+				 Make sure we call python in here if needed
+
+				 */
 				char *error = "";
-				 
+
 				const char* data = "Callback function called";
 				//Make sure stock field isnt empty
 				InformationBox->Text += "\nChecking for stock symbol...";
@@ -230,13 +228,13 @@ namespace StockReaderApplication {
 					std::string tempStock   = msclr::interop::marshal_as<std::string>(StockSymbol->Text);
 					std::string doesitexist = "SELECT * FROM '" + tempStock + "'";
 					
-					//rc = sqlite3_exec(db, doesitexist.c_str(),NULL,NULL, &error);
+					char *error = "";
 					rc = sqlite3_exec(db, doesitexist.c_str(), NULL, NULL, &error);
 
 					InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
+					
 					if(rc)
 					{
-						printError(db, error);
 						InformationBox->Text +="\nNew table needed, Creating new table..." ;
 						std::string createTable = "CREATE TABLE " + tempStock + " (date DATE PRIMARY KEY, Open FLOAT, Close FLOAT, High FLOAT, Low FLOAT );";
 						rc = sqlite3_exec(db, createTable.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
@@ -246,40 +244,48 @@ namespace StockReaderApplication {
 							return false;
 							
 						}
+
+						//THIS NEED TO BE MOVED. Determine if we have any dates less than the minimum.. or just get all...
+						callPython();
 				    }
 				    else
 				    {
 					   InformationBox->Text +="Table Already Exist, Checking for dates..." ;
+					}
 
-					   /*Get and print information in Table*/
-					   //
-					   DateTime tempStartDate = dateTimePicker1->Value;
-
-;					   while(tempStartDate <= dateTimePicker2->Value)
-					   {
-						   std::string StartDate = msclr::interop::marshal_as<std::string>(tempStartDate.ToString("yyyy-MM-dd"));
-						   std::string selectall = "SELECT * from " + tempStock + " WHERE date ='" + StartDate + "'" ;
-						   rc = sqlite3_exec(db, selectall.c_str(), &callBackMethod.callback_Tester, NULL , &error);
-						   if (rc)
-						   {
-						       printError(db, error);
-							   return false;
-						   }
-						   InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
-						   callBackMethod.ClearTextUpdate();
-						   tempStartDate = tempStartDate.AddDays(1);
+					/*Get and print information in Table*/
+					//
+					DateTime tempStartDate = dateTimePicker1->Value;
+					DateTime tempEndDate = dateTimePicker2->Value;
+					while(tempStartDate <= tempEndDate)
+					{
+						std::string StartDate = msclr::interop::marshal_as<std::string>(tempStartDate.ToString("MM/dd/yyyy"));
+						std::string selectall = "SELECT * from " + tempStock + " WHERE date ='" + StartDate + "'" ;
+						rc = sqlite3_exec(db, selectall.c_str(), &callBackMethod.callback_Tester, NULL , &error);
+						if (rc)
+						{
+						    printError(db, error);
+							return false;
+						}
+						InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
+						callBackMethod.ClearTextUpdate();
+						tempStartDate = tempStartDate.AddDays(1);
 					       
-					   }
+					}
 					   
-				    }
+				    
 				}
-				sqlite3_free(error);
+
 				sqlite3_close(db);
+				if(error != "") sqlite3_free(error);
 				return true;
 			 }
 
 	private: void printError(  sqlite3 * db, char * error)
 			 {
+					/*
+					@if this is called. A return must follow because the database is closed here.
+					*/
 				    InformationBox->Text += "\nError Detected...";
 					sqlite3_close(db);
 					sqlite3_free(error);
@@ -287,28 +293,20 @@ namespace StockReaderApplication {
 
 	private: bool callPython()
 			 {
-				 /* Work needed, figure out how to call python methods for future work
-
-				 Py_Initialize();
-
-				 PyObject* myModuleString = PyString_FromString((char*)"PSR");
-				 PyObject* myModule = PyImport_Import(myModuleString);
-				 
-				 //Then getting a reference to your function :
-				 PyObject* myFunction = PyObject_GetAttrString(myModule,(char*)"main");
-				 PyObject* args = PyTuple_Pack(1,PyFloat_FromDouble(2.0));
-				 
-				 //Then getting your result :
-				  PyObject* myResult = PyObject_CallObject(myModule, args);
-
-				 //And getting back to a double :
-				//  std::list<std::string> result = PyFloat_AsString(myResult);
-				// std::list<std::string> result = PyFloat_AsDouble(myResult);
-
-				 Py_Finalize();
+				 /* 
+				  1 Renamed python to python3 in order to get this to work with two python version on the same system.
+				  2 Moved the Chrome driver to C:\Python36\ 
+				  3 Added python to the variable path
 				 */
-				 std::string argument (std::string("..\\PythonReader\\PSR.py") + std::string(" https://www.nasdaq.com/symbol/pir/historical") + std::string(" //*[@id=\\\"ddlTimeFrame\\\"]/option[1]") + std::string(" PIR ") + databaseName.c_str() );
-			     system(argument.c_str());
+				 std::string argument ("python3 " + 
+					 std::string("..\\..\\PSR\\nasdaq.py") + 
+					 std::string(" https://www.nasdaq.com/symbol/") + msclr::interop::marshal_as<std::string>(StockSymbol->Text) + ("/historical") + 
+					 std::string(" //*[@id=\\\"ddlTimeFrame\\\"]/option[1]") + //update time option
+					 std::string(" ") + msclr::interop::marshal_as<std::string>(StockSymbol->Text)  + std::string(" ") +
+					 databaseName.c_str() + 
+					 " pause");
+			     //std::string argument (std::string("..\\PSR\\PSR.py; pause;"));
+				 system(argument.c_str());
 
 			     return true;
 			 }
