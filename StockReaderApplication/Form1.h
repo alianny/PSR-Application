@@ -236,7 +236,7 @@ namespace StockReaderApplication {
 					if(rc)
 					{
 						InformationBox->Text +="\nNew table needed, Creating new table..." ;
-						std::string createTable = "CREATE TABLE " + tempStock + " (date DATE PRIMARY KEY, Open FLOAT, Close FLOAT, High FLOAT, Low FLOAT );";
+						std::string createTable = "CREATE TABLE " + tempStock + " (date DATE PRIMARY KEY, Open FLOAT, Close FLOAT, High FLOAT, Low FLOAT, Volume FLOAT );";
 						rc = sqlite3_exec(db, createTable.c_str(), &callBackMethod.callback_Tester, (void*)data, &error);
 						if (rc)
 						{
@@ -246,12 +246,35 @@ namespace StockReaderApplication {
 						}
 
 						//THIS NEED TO BE MOVED. Determine if we have any dates less than the minimum.. or just get all...
-						callPython();
+						callPython("15");
 				    }
 				    else
 				    {
 					   InformationBox->Text +="Table Already Exist, Checking for dates..." ;
+					   callBackMethod.ClearTextUpdate();
+					   
+					   //Lets go back a month from the start date to see if we have up to date information...
+					   DateTime tempStartDate = dateTimePicker1->Value;
+					   tempStartDate = tempStartDate.AddMonths(-1);
+					   
+					   std::string testDate = msclr::interop::marshal_as<std::string>(tempStartDate.ToString("yyyy-MM-dd"));
+					   std::string startDate = msclr::interop::marshal_as<std::string>(dateTimePicker1->Value.ToString("yyyy-MM-dd"));
+					   std::string doWeHaveInfo = "SELECT * from " + tempStock + " WHERE (substr(date, 7, 4) || '-' || substr(date, 1, 2) || '-' ||substr(date, 4, 2)) BETWEEN '" + testDate +"' AND '" +startDate+"'";
+					  
+					   rc = sqlite3_exec(db, doWeHaveInfo.c_str(), &callBackMethod.callback_Tester, NULL , &error);
+					   
+					   //For debugging. See if we got results...eventuall comment this out...
+					   //InformationBox->Text += msclr::interop::marshal_as<System::String ^>(callBackMethod.getTextUpdate());
+
+					   //if we did not get a reply from the previous month, get the full history for this stock...
+					   //by default we get the full history when we create the table for the stock... but mistakes can happen? just get it anyways...
+					   if(callBackMethod.getTextUpdate() == "")
+					   {
+					       callPython("15");
+					   }
+
 					}
+
 
 					/*Get and print information in Table*/
 					//
@@ -291,18 +314,24 @@ namespace StockReaderApplication {
 					sqlite3_free(error);
 			 }
 
-	private: bool callPython()
+	private: bool callPython( std::string option )
 			 {
 				 /* 
-				  1 Renamed python to python3 in order to get this to work with two python version on the same system.
-				  2 Moved the Chrome driver to C:\Python36\ 
-				  3 Added python to the variable path
+				  @1 Renamed python to python3 in order to get this to work with two python version on the same system.
+				  @2 Moved the Chrome driver to C:\Python36\ 
+				  @3 Added python to the variable path
+				  
+				  @create a enum for the options below...
+				  @Options: 1(5d) 2(1m) 3(3m) 4(6m) 5(1y) 6(18m) 7(2y) 8(3y) 9(4y) 10(5y) 11(6y) 12(7y) 13(8y) 14(9y) 15(10y)
+				  @all we really need is the max, if we dont have the information get the maximum...
+				  @I will leave options in the comments in case needs change...
 				 */
+				 
 				 std::string argument ("python3 " + 
 					 std::string("..\\..\\PSR\\nasdaq.py") + 
 					 std::string(" https://www.nasdaq.com/symbol/") + msclr::interop::marshal_as<std::string>(StockSymbol->Text) + ("/historical") + 
-					 std::string(" //*[@id=\\\"ddlTimeFrame\\\"]/option[1]") + //update time option
-					 std::string(" ") + msclr::interop::marshal_as<std::string>(StockSymbol->Text)  + std::string(" ") +
+					 std::string(" //*[@id=\\\"ddlTimeFrame\\\"]/option[") + option.c_str() + "] " + //update time option
+					 msclr::interop::marshal_as<std::string>(StockSymbol->Text)  + std::string(" ") +
 					 databaseName.c_str() + 
 					 " pause");
 			     //std::string argument (std::string("..\\PSR\\PSR.py; pause;"));
